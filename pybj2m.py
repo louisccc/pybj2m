@@ -25,6 +25,7 @@ class Game:
 		self.shoe = Shoe(6)
 		self.dealer = None
 		self.players = []
+		self.dealer_card = None
 
 	def add_player(self, player):
 		self.players.append(player)
@@ -71,7 +72,7 @@ class Game:
 			player.hit(self.shoe)
 
 	def game_2nd_round(self):
-		self.dealer.hit(self.shoe)
+		self.dealer_card = self.dealer.hit(self.shoe)
 
 		for player in self.players:
 			player.hit(self.shoe)
@@ -79,7 +80,7 @@ class Game:
 	def game_player_turn(self):
 
 		for idx, player in enumerate(self.players):
-			player.play(self.shoe)
+			player.play(self.shoe, self.dealer_card)
 
 			print("Player %d got %d" % (idx, player.hands[0].tot_value))
 			# player.show_hand()
@@ -213,6 +214,7 @@ class Dealer:
 	def hit(self, shoe):
 		card = shoe.draw()
 		self.hand.add_card(card)
+		return card
 
 	def stand(self):
 		pass
@@ -222,6 +224,99 @@ class Dealer:
 
 	def clean_hand(self):
 		self.hand.clean()
+
+class TablePlayer:
+	def __init__(self):
+
+		# a player can have multiple hands, but by default there is one. 
+		self.hands = [Hand()]
+
+		self.bet = 5
+		self.money = 0
+		
+		# self.hash_table = 
+		# {
+		# 	21: {
+		# 		2:'H', 3:'H', 4:'H', 5:'H', 6:'H', 7:'H'
+		# 		}
+		# }
+	def play(self, shoe, dealer_card):
+		# soft 17 dealer strategy
+
+		for hand in self.hands:
+			while True:
+				action = "S"
+				if hand.aces_be_11:
+					action = self.soft_play(hand, dealer_card)
+				else: 
+					action = self.hard_play(hand, dealer_card)
+				
+				if action == "S":
+					self.stand()
+					break
+				elif action == "H":
+					self.hit(shoe, hand=hand)
+				else:
+					pass
+
+	def hard_play(self, hand, dealer_card):
+		action = None
+
+		if hand.tot_value >= 17: 
+			action = "S"
+			
+		elif hand.tot_value >= 13 and hand.tot_value <= 16:
+			if dealer_card.value >= 7 or dealer_card.value == 1:
+				action = "H"
+			else:
+				action = "S"
+				
+		elif hand.tot_value == 12: 
+			if dealer_card.value >= 7 or dealer_card.value <= 3:
+				action = "H" 
+			else:
+				action = "S"
+		else:
+			action = "H"
+		
+		return action
+	
+	def soft_play(self, hand, dealer_card):
+		if hand.tot_value >= 19:
+			action = "S"
+		elif hand.tot_value == 18:
+			if dealer_card.value >= 9 or dealer_card.value == 1:
+				action = "H"
+			else:
+				action = "S"
+		else:
+			action = "H"
+
+		return action
+
+	def decide_bet(self):
+		self.bet = 1
+
+	def get_bet(self):
+		return self.bet
+
+	def hit(self, shoe, hand=None):
+		card = shoe.draw()
+
+		if hand==None:
+			self.hands[0].add_card(card)
+		else:
+			hand.add_card(card)
+	
+	def show_hand(self):
+		for hand in self.hands:
+			print(hand.cards, hand.tot_value)
+
+	def clean_hand(self):
+		self.hands[0].clean()
+
+	def stand(self):
+		pass
 
 
 class Player: 
@@ -234,8 +329,8 @@ class Player:
 		self.bet = 5
 		self.money = 0
 	
-	def play(self, shoe):
-		# soft 17 dealer strategy
+	def play(self, shoe, dealer_card):
+		# dummy strategy
 		for hand in self.hands:
 			while True:
 				if hand.tot_value < 17: 
@@ -275,8 +370,9 @@ if __name__ == "__main__":
 	game.set_dealer(Dealer())
 	game.add_player(Player())
 	game.add_player(Player())
+	game.add_player(TablePlayer())
 
-	for round_idx in range(100):
+	for round_idx in range(10000):
 		print("round%d"%round_idx)
 
 		game.play()
